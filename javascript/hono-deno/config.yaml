@@ -1,6 +1,6 @@
 framework:
   website: hono.dev
-  version: 4.11
+  version: 4.12
 
   engines:
     - deno
