@@ -9,6 +9,7 @@ gem "mustache"
 gem "open3"
 gem "pg"
 gem "rake"
+gem "net-ssh", "~> 7.3"
 
 group :development, :test do
   gem "rspec"
