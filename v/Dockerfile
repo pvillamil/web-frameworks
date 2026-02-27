@@ -51,4 +51,4 @@ COPY --from=build /app /app
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
   CMD curl --fail http://0.0.0.0:3000 || exit 1
 
-ENTRYPOINT {{command}}
+ENTRYPOINT {{{command}}}

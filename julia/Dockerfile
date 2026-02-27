@@ -17,4 +17,4 @@ RUN julia deps.jl
 
 HEALTHCHECK CMD curl --fail http://0.0.0.0:3000 || exit 1
 
-ENTRYPOINT {{command}}
+ENTRYPOINT {{{command}}}

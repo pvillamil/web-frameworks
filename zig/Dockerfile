@@ -46,4 +46,4 @@ COPY --from=build /home/ziguser/zig-out/bin/httpz /server
 
 HEALTHCHECK CMD curl --fail http://0.0.0.0:3000 || exit
 
-ENTRYPOINT {{command}}
+ENTRYPOINT {{{command}}}
