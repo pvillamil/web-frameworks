@@ -5,5 +5,11 @@ framework:
   build_deps:
     - libsqlite3-dev
 
+  runtime_deps:
+    - libyaml-dev
+
   static_files:
     - config/environments/production.yml
+
+  environment:
+    AMBER_ENV: production

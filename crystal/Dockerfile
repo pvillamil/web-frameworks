@@ -20,7 +20,7 @@ RUN --mount=type=cache,id=shards-lib-{{language.version}},target=lib \
   shards install --production
 
 RUN --mount=type=cache,id=shards-lib-{{language.version}},target=lib \
-  shards build --release --no-debug
+  shards build --release --static --no-debug
 
 
 
@@ -29,10 +29,12 @@ FROM debian:trixie-slim
 WORKDIR /app
 
 RUN apt-get -qq update && \
-  apt-get -qy install --no-install-recommends curl && \
+  apt-get -qy install --no-install-recommends \
+    curl \
+    {{#runtime_deps}}{{{.}}} {{/runtime_deps}} && \
   rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /usr/src/app/bin/server /app/server
+COPY --from=build /usr/src/app/bin/server /app/bin/server
 
 {{#static_files}}
   COPY '{{source}}' '{{target}}'
