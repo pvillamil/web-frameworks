@@ -1,4 +1,4 @@
-FROM haskell:9.12-bookworm
+FROM haskell:9.14-bookworm
 
 WORKDIR /usr/src/app
 
