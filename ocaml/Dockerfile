@@ -2,6 +2,9 @@ FROM ocaml/opam:debian-13-ocaml-5.2
 
 WORKDIR /usr/src/app
 
+# Switch to root to install system dependencies
+USER root
+
 RUN apt-get -qq update && \
   apt-get -qy install \
     pkg-config \
