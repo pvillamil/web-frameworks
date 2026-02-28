@@ -4,6 +4,8 @@ framework:
 
   build_deps:
     - libmagic-dev
+    - liblzma-dev
+    - libbz2-dev
 
 environment:
   ATHENA_ENV: production
