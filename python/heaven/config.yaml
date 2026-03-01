@@ -1,7 +1,7 @@
 framework:
   website: rayattack.github.io/heaven/
   gihub: rayattack/heaven
-  version: 0.5
+  version: 0.6
 
   engines:
     - uvicorn
