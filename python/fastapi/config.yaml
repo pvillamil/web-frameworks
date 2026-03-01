@@ -1,6 +1,6 @@
 framework:
   website: fastapi.tiangolo.com
-  version: 0.134
+  version: 0.135
 
   engines:
     - uvicorn
