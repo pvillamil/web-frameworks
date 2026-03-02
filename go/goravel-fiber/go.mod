@@ -8,7 +8,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.12
 	github.com/gofiber/template/html/v3 v3.0.2
 	github.com/goravel/fiber v1.17.0
-	github.com/goravel/framework v1.16.6
+	github.com/goravel/framework v1.17.1
 )
 
 require (
