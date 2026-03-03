@@ -5,6 +5,6 @@
     "@adonisjs/encryption": "^6.0.1",
     "@adonisjs/events": "^9.0.1",
     "@adonisjs/http-server": "^7.0.3",
-    "@adonisjs/logger": "^6.0.1"
+    "@adonisjs/logger": "^7.0.0"
   }
 }
