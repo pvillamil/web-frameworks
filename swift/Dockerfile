@@ -1,42 +1,53 @@
 {{#language.version}}
-  FROM swift:{{{.}}}
+  FROM swift:{{{.}}} AS build
 {{/language.version}}
-
 {{^language.version}}
-  FROM swift:6.2
+  FROM swift:6.2 AS build
 {{/language.version}}
-
-RUN apt -y update
-RUN apt -y install libssl-dev zlib1g-dev libcurl4-openssl-dev uuid-dev
 
 WORKDIR /usr/src/app
 
+RUN apt-get -qq update && \
+  apt-get -qy install libssl-dev zlib1g-dev libcurl4-openssl-dev uuid-dev && \
+  rm -rf /var/lib/apt/lists/*
+
 COPY Package.swift ./
+
+RUN swift package resolve
+
 COPY Sources/ ./Sources/
 
 {{#build_environment}}
-ENV {{{.}}}
+  ENV {{{.}}}
 {{/build_environment}}
 
 RUN swift build -c release -Xswiftc -enforce-exclusivity=unchecked
 
+
+
 {{#language.version}}
   FROM swift:{{{.}}}-slim
 {{/language.version}}
-
 {{^language.version}}
   FROM swift:6.2-slim
 {{/language.version}}
 
+WORKDIR /app
+
+RUN apt-get -qq update && \
+  apt-get -qy install --no-install-recommends curl && \
+  rm -rf /var/lib/apt/lists/*
+
 {{#environment}}
-ENV {{{.}}}
+  ENV {{{.}}}
 {{/environment}}
 
-COPY --from=0 /usr/src/app/.build/release/server /usr/src/app/.build/release/server
-
-RUN apt-get -qq update
-RUN apt-get -qy install curl
-
-ENTRYPOINT {{command}} {{options}}
+COPY --from=build /usr/src/app/.build/release/server /app/.build/release/server
 
 HEALTHCHECK CMD curl --fail http://0.0.0.0:3000 || exit 1
+
+ENTRYPOINT {{{command}}}
+
+{{#options}}
+  CMD {{{options}}}
+{{/options}}

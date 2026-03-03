@@ -2,8 +2,8 @@ framework:
   website: vapor.codes
   version: 4.121
   name: vapor
+  options: serve
 
-options: serve
 environment:
   SERVER_HOSTNAME: 0.0.0.0
   SERVER_PORT: 3000

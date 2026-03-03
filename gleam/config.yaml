@@ -8,7 +8,7 @@ language:
 
   engines:
     default:
-      command: /opt/web/build/erlang-shipment/entrypoint.sh  run
+      command: /app/entrypoint.sh run
 
 framework:
   engines:

@@ -5,8 +5,13 @@
   FROM php:8.5-fpm
 {{/language.version}}
 
-RUN apt-get -qq update
-RUN apt-get -qy install --no-install-recommends libzip-dev {{#deps}} {{{.}}} {{/deps}}
+RUN apt-get -qq update && \
+  apt-get -y install --no-install-recommends \
+    libzip-dev \
+    curl \
+    {{#deps}}{{{.}}} {{/deps}} \
+    {{#build_deps}}{{{.}}} {{/build_deps}} && \
+  rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src/app
 
@@ -15,12 +20,6 @@ RUN docker-php-ext-install zip
 {{#environment}}
   ENV {{{.}}}
 {{/environment}}
-
-{{#build_deps}}
-  RUN apt-get -qy install --no-install-recommends {{{.}}}
-{{/build_deps}}
-
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 {{#modules}}
   RUN docker-php-ext-install {{{.}}}
@@ -36,7 +35,7 @@ ENV EVENT_EXT_FILE /usr/local/etc/php/conf.d/docker-php-ext-event.ini
 RUN if [ -f "${EVENT_EXT_FILE}" ] ; then \
   rm -fr /usr/local/etc/php/conf.d/docker-php-ext-sockets.ini ; \
   sed -i -e '1i extension=sockets.so' /usr/local/etc/php/conf.d/docker-php-ext-event.ini ; fi
-  
+
 {{#before_build}}
   RUN {{{.}}}
 {{/before_build}}
@@ -45,20 +44,17 @@ RUN if [ -f "${EVENT_EXT_FILE}" ] ; then \
   COPY '{{source}}' '{{target}}'
 {{/files}}
 
-  RUN apt-get -qq update
-  RUN apt-get -qy install curl
-
-
 {{^framework.standalone}}
   {{#bootstrap}}
     RUN {{{.}}}
   {{/bootstrap}}
 {{/framework.standalone}}
 
+HEALTHCHECK CMD curl --fail http://0.0.0.0:3000 || exit 1
+
 {{#command}}
   ENTRYPOINT {{{.}}}
 {{/command}}
-
 {{^command}}
   {{#slasheddocroot}}
     RUN sed -i 's/\;prefix.*/prefix = {{{.}}}/g' /usr/local/etc/php-fpm.d/www.conf
@@ -66,17 +62,18 @@ RUN if [ -f "${EVENT_EXT_FILE}" ] ; then \
   {{^slasheddocroot}}
     RUN sed -i 's/\;prefix.*/prefix = \/usr\/src\/app\/public/g' /usr/local/etc/php-fpm.d/www.conf
   {{/slasheddocroot}}
+
   RUN sed -i 's/\;\(listen =\).*/\1 \/var\/run\/php-fpm.sock/g' /usr/local/etc/php-fpm.d/www.conf
   RUN sed -i 's/\;\(listen\.owner.*\).*/\1/g' /usr/local/etc/php-fpm.d/www.conf
   RUN sed -i 's/\;\(listen\.group.*\).*/\1/g' /usr/local/etc/php-fpm.d/www.conf
   RUN sed -i 's/\;\(listen\.mode.*\).*/\1/g' /usr/local/etc/php-fpm.d/www.conf
   # pm.max_children set according to nproc
-  RUN if [ $(nproc) = 1 ] ; then sed -i 's/\(pm\.max_children =\).*/\1 512/g' /usr/local/etc/php-fpm.d/www.conf ; else sed -i 's/\(pm\.max_children =\).*/\1 1024/g' /usr/local/etc/php-fpm.d/www.conf ; fi 
+  RUN if [ $(nproc) = 1 ] ; then sed -i 's/\(pm\.max_children =\).*/\1 512/g' /usr/local/etc/php-fpm.d/www.conf ; else sed -i 's/\(pm\.max_children =\).*/\1 1024/g' /usr/local/etc/php-fpm.d/www.conf ; fi
   # after 15 seconds warm-up, half of the 'idle' children are not killed
-  RUN if [ $(nproc) = 1 ] ; then sed -i 's/\(pm\.max_spare_servers =\).*/\1 256/g' /usr/local/etc/php-fpm.d/www.conf ; else sed -i 's/\(pm\.max_spare_servers =\).*/\1 512/g' /usr/local/etc/php-fpm.d/www.conf ; fi 
-  
+  RUN if [ $(nproc) = 1 ] ; then sed -i 's/\(pm\.max_spare_servers =\).*/\1 256/g' /usr/local/etc/php-fpm.d/www.conf ; else sed -i 's/\(pm\.max_spare_servers =\).*/\1 512/g' /usr/local/etc/php-fpm.d/www.conf ; fi
+
   RUN rm -fr /usr/local/etc/php-fpm.d/zz-docker.conf
-  
+
   RUN echo 'server {\n\
       {{#docroot}}
         root {{{.}}};\n\
@@ -98,7 +95,7 @@ RUN if [ -f "${EVENT_EXT_FILE}" ] ; then \
       {{/nginx_conf}}
   }\n'\
   > /etc/nginx/conf.d/server.conf
-  
+
   RUN echo 'opcache.enable=1\n\
   opcache.enable_cli=1\n\
   opcache.memory_consumption=512\n\
@@ -108,10 +105,6 @@ RUN if [ -f "${EVENT_EXT_FILE}" ] ; then \
   opcache.save_comments=1\n\
   opcache.fast_shutdown=0\n'\
   >> /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
-  
 
   ENTRYPOINT /usr/local/sbin/php-fpm --daemonize; nginx -g "daemon off;"
-
 {{/command}}
-
-HEALTHCHECK CMD curl --fail http://0.0.0.0:3000 || exit 1

@@ -24,12 +24,17 @@ WORKDIR /usr/src/app
 {{#build}}
   RUN {{{.}}}
 {{/build}}
-
 {{^build}}
   RUN clojure -Auberjar
 {{/build}}
 
+
+
 FROM eclipse-temurin:25.0.2_10-jre
+
+RUN apt-get -qq update && \
+  apt-get -qy install --no-install-recommends curl && \
+  rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/bin
 
@@ -38,12 +43,9 @@ WORKDIR /opt/bin
 {{/environment}}
 
 {{#binaries}}
-  COPY --from=build /usr/src/app/{{{.}}} /opt/bin/{{{.}}} 
+  COPY --from=build /usr/src/app/{{{.}}} ./{{{.}}}
 {{/binaries}}
 
-ENTRYPOINT {{command}}
-
-RUN apt-get -qq update
-RUN apt-get -qy install curl
-
 HEALTHCHECK CMD curl --fail http://0.0.0.0:3000 || exit 1
+
+ENTRYPOINT {{{command}}}

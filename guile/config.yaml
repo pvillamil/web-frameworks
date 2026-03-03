@@ -14,4 +14,4 @@ framework:
 language:
   engines:
     default:
-      command: "guile -L . -e '('$GUILE_APP')' -c '' $@"
+      command: guile -L . -e "($GUILE_APP)" -c '' $@

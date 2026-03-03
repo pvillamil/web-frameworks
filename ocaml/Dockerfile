@@ -1,10 +1,19 @@
-FROM ocaml/opam:debian-12-ocaml-5.2
+FROM ocaml/opam:debian-13-ocaml-5.2
 
 WORKDIR /usr/src/app
 
+# Switch to root to install system dependencies
 USER root
-RUN apt-get update -y && apt-get install pkg-config libev-dev libssl-dev libgmp-dev -y
-RUN apt-get -qy install curl
+
+RUN apt-get -qq update && \
+  apt-get -qy install \
+    pkg-config \
+    libev-dev \
+    libssl-dev \
+    libgmp-dev \
+    curl && \
+  rm -rf /var/lib/apt/lists/*
+
 USER opam
 
 {{#files}}
@@ -15,10 +24,6 @@ USER opam
   RUN {{{.}}}
 {{/bootstrap}}
 
-
-
-{{#command}}
-  ENTRYPOINT {{{.}}}
-{{/command}}
-
 HEALTHCHECK CMD curl --fail http://0.0.0.0:3000 || exit 1
+
+ENTRYPOINT {{{command}}}

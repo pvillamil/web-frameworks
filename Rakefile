@@ -4,6 +4,8 @@ require "dotenv"
 require "active_support"
 require "yaml"
 require "mustache"
+require "shellwords"
+require "json"
 
 MANIFESTS = {
   container: ".Dockerfile",
@@ -213,8 +215,14 @@ def create_dockerfile(directory, engine, config)
     config["language"]["compiler"] = { compiler => true }
   end
 
+  config["command"] = shell_to_json_array(config["command"]) if config["command"]
+  config["options"] = shell_to_json_array(config["options"]) if config["options"]
+
   template = File.read(path)
-  config.merge!(template_variables).merge!({ if: template_conditions }).merge!(files:, static_files:, environment: config["environment"]&.map do |k, v|
+  config
+    .merge!(template_variables)
+    .merge!({ if: template_conditions })
+    .merge!(files:, static_files:, environment: config["environment"]&.map do |k, v|
                                                                                  "#{k}=#{v}"
                                                                                end)
   File.write(File.join(directory, ".Dockerfile.#{engine}"), Mustache.render(template, config))
@@ -227,6 +235,42 @@ end
 
 def template_conditions
   template_variables.flat_map { |k, v| { k.to_s => { v => true } } }.reduce(:merge)
+end
+
+def json_array_with_spaces(array)
+  "[" + array.map { |v| v.to_json }.join(", ") + "]"
+end
+
+def shell_to_json_array(value)
+  case value
+  when String
+    normalized = value
+      .gsub(/\\\s*\n/, " ")
+      .gsub(/\s+/, " ")
+      .strip
+
+    if normalized.start_with?("sh -c ")
+      parts = normalized.split(" ", 3)
+      return json_array_with_spaces(parts)
+    end
+
+    # checking for shell commands, variables, or obtaining variables in `command` Guile
+    if normalized.match?(/\$\(|\$\{/) || normalized.match?(/\(\$\w+\)/)
+      parts = normalized.scan(/\A(?:[A-Z_]+=.*?\s+)+/).first
+      if parts
+        rest = normalized[parts.length..].strip
+        return json_array_with_spaces(["sh", "-c", "#{parts}exec #{rest}"])
+      else
+        return json_array_with_spaces(["sh", "-c", "exec #{normalized}"])
+      end
+    end
+
+    json_array_with_spaces(Shellwords.split(normalized))
+  when Array
+    json_array_with_spaces(value)
+  else
+    raise "Invalid command: #{value}"
+  end
 end
 
 desc "Create Dockerfiles"

@@ -1,52 +1,54 @@
-FROM debian:trixie-slim
+FROM debian:trixie-slim AS build
 
 WORKDIR /usr/src/app
 
-RUN apt-get -qq update
-RUN apt-get -qy install --no-install-recommends build-essential git cmake
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get -qq update && \
+  apt-get -y install --no-install-recommends \
+    build-essential \
+    git \
+    cmake \
+    {{#build_deps}}{{{.}}} {{/build_deps}} && \
+  rm -rf /var/lib/apt/lists/*
 
 ENV GIT_SSL_NO_VERIFY=1
-
-{{#build_deps}}
-  RUN apt-get -qy install --no-install-recommends {{{.}}}
-{{/build_deps}}
-
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 {{#files}}
   COPY '{{source}}' '{{target}}'
 {{/files}}
+
 {{#download}}
   RUN {{{.}}}
 {{/download}}
 
 {{#build}}
-   RUN {{{.}}}
+  RUN {{{.}}}
 {{/build}}
+
+
 
 FROM debian:trixie-slim
 
-{{#environment}}
-ENV {{{.}}}
-{{/environment}}
-
 WORKDIR /opt/web
 
-RUN apt-get -qq update
+RUN apt-get -qq update && \
+  apt-get -y install --no-install-recommends \
+    curl \
+    {{#bin_deps}}{{.}} {{/bin_deps}} && \
+  rm -rf /var/lib/apt/lists/*
 
-{{#bin_deps}}
-   RUN apt-get -qy install --no-install-recommends {{{.}}}
-{{/bin_deps}}
+{{#environment}}
+  ENV {{{.}}}
+{{/environment}}
 
 {{#files}}
   COPY '{{source}}' '{{target}}'
 {{/files}}
+
 {{#binaries}}
-  COPY --from=0 /usr/src/app/{{{.}}} {{{.}}}
+  COPY --from=build /usr/src/app/{{{.}}} {{{.}}}
 {{/binaries}}
 
-RUN apt-get -qq update
-RUN apt-get -qy install curl
 HEALTHCHECK CMD curl --fail http://0.0.0.0:3000 || exit 1
 
 ENTRYPOINT {{{command}}}

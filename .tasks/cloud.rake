@@ -143,9 +143,9 @@ namespace :cloud do
     while true
       hostname = ENV['HOST']
     identity_file = File.expand_path(ENV['SSH_KEY'])
-    
+
     $stderr.puts "Trying to connect on #{hostname} with #{identity_file}"
-    
+
       begin
         ssh = Net::SSH.start(hostname, 'root', keys: [identity_file])
       rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Net::SSH::AuthenticationFailed => e

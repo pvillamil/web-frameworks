@@ -7,12 +7,14 @@
 
 WORKDIR /usr/src/app
 
+RUN apt-get -qq update && \
+  apt-get -qy install --no-install-recommends curl && \
+  rm -rf /var/lib/apt/lists/*
+
 COPY server.jl Project.toml deps.jl ./
 
 RUN julia deps.jl
 
-RUN apt-get -qq update
-RUN apt-get -qy install curl
 HEALTHCHECK CMD curl --fail http://0.0.0.0:3000 || exit 1
 
-ENTRYPOINT {{command}}
+ENTRYPOINT {{{command}}}

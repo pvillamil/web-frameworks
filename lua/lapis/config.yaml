@@ -4,8 +4,10 @@ framework:
 
   image: openresty/openresty:alpine-fat
 
+  build_deps:
+    - openssl-dev
+
   build:
-    - apk add --no-cache openssl-dev
     - /usr/local/openresty/luajit/bin/luarocks install lapis
     - lapis new
 

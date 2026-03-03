@@ -1,28 +1,21 @@
 FROM nimlang/nim:2.2.6-ubuntu-regular AS build
 
-{{#build_deps.length}}
-  ARG DEBIAN_FRONTEND=noninteractive
-  RUN apt-get -y update
-
-  {{#build_deps}}
-    RUN apt-get -y install {{{.}}}
-  {{/build_deps}}
-
-{{/build_deps.length}}
-
-## set working directory
 WORKDIR /usr/src/app
 
-## Nim environment
-ENV NIM_ENV=production
-ENV NIMBLE_DIR=/home/nim/.nimble
-ENV PATH=$PATH:/home/nim/.nimble/bin
+{{#build_deps.length}}
+  ARG DEBIAN_FRONTEND=noninteractive
+  RUN apt-get -qq update && \
+    apt-get -y install {{#build_deps}}{{{.}}} {{/build_deps}} && \
+    rm -rf /var/lib/apt/lists/*
+{{/build_deps.length}}
+
+ENV NIM_ENV=production \
+  NIMBLE_DIR=/home/nim/.nimble \
+  PATH=$PATH:/home/nim/.nimble/bin:/root/.nimble/bin
 
 {{#files}}
   COPY '{{source}}' '{{target}}'
 {{/files}}
-
-ENV PATH $PATH:/root/.nimble/bin
 
 {{#build_with}}
   RUN {{{.}}}
@@ -46,27 +39,27 @@ ENV PATH $PATH:/root/.nimble/bin
     server.nim
 {{/build_command}}
 
+
+
 FROM ubuntu:latest
 
 WORKDIR /usr/src/app
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get -y update
-RUN apt-get -y install libssl-dev libpcre3-dev curl
+RUN apt-get -qq update && \
+  apt-get -qy install --no-install-recommends \
+    libssl-dev \
+    libpcre3-dev \
+    curl && \
+  rm -rf /var/lib/apt/lists/*
 
 {{#custom_files}}
   COPY --from=build /usr/src/app/{{{.}}} /usr/src/app/{{{.}}}
 {{/custom_files}}
-
 {{^custom_files}}
   COPY --from=build /usr/src/app/server /usr/src/app/server
 {{/custom_files}}
 
 HEALTHCHECK CMD curl --fail http://0.0.0.0:3000 || exit 1
 
-{{#command}}
-  ENTRYPOINT {{{.}}}
-{{/command}}
-{{^command}}
-  ENTRYPOINT ["/usr/src/app/server"]
-{{/command}}
+ENTRYPOINT {{{command}}}

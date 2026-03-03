@@ -7,34 +7,35 @@
 
 WORKDIR /usr/src/app
 
-RUN apt-get -qq update
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get -qq update && \
+  apt-get -qy install --no-install-recommends \
+    build-essential \
+    libjemalloc2 \
+    curl && \
+  {{#build_deps.length}}
+  apt-get -y install {{#build_deps}}{{.}} {{/build_deps}} && \
+  {{/build_deps.length}}
+  rm -rf /var/lib/apt/lists/*
 
-RUN apt-get -qy install --no-install-recommends build-essential
-
-RUN apt-get install -y --no-install-recommends libjemalloc2
-ENV LD_PRELOAD=libjemalloc.so.2
-
-{{#files}}
-  COPY '{{source}}' '{{target}}'
-{{/files}}
-
-{{#build_deps}}
-  RUN apt-get -y install {{{.}}}
-{{/build_deps}}
+ENV BUNDLE_PATH="/usr/local/bundle" \
+  LD_PRELOAD=libjemalloc.so.2
 
 {{#environment}}
   ENV {{{.}}}
 {{/environment}}
 
-RUN bundle install
+{{#files}}
+  COPY '{{source}}' '{{target}}'
+{{/files}}
+
+RUN --mount=type=cache,id=bundler-gems-{{language.version}},target=${BUNDLE_PATH}/cache \
+  bundle install
 
 {{#bootstrap}}
   RUN {{{.}}}
 {{/bootstrap}}
 
-RUN apt-get -qq update
-RUN apt-get -qy install curl
+HEALTHCHECK CMD curl --fail http://0.0.0.0:3000 || exit 1
 
 ENTRYPOINT {{{command}}}
-
-HEALTHCHECK CMD curl --fail http://0.0.0.0:3000 || exit 1
