@@ -1,6 +1,6 @@
 framework:
   website: adonisjs.com
-  version: 6.2
+  version: 7.0
 
   bootstrap:
     - npm install -g typescript
