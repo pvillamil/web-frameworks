@@ -10,7 +10,7 @@
                  [luminus-jetty "0.2.3"]
                  [luminus-transit "0.1.6"]
                  [luminus/ring-ttl-session "0.3.3"]
-                 [markdown-clj "1.12.6"]
+                 [markdown-clj "1.12.7"]
                  [metosin/muuntaja "0.6.11"]
                  [metosin/reitit "0.10.0"]
                  [metosin/ring-http-response "0.9.5"]
@@ -25,7 +25,7 @@
                  [ring-webjars "0.3.1"]
                  [ring/ring-core "1.15.3"]
                  [ring/ring-defaults "0.7.0"]
-                 [com.fasterxml.jackson.core/jackson-core "2.20.1"]]
+                 [com.fasterxml.jackson.core/jackson-core "2.21.1"]]
 
   :min-lein-version "2.0.0"
   
