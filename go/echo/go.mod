@@ -1,3 +1,3 @@
 module main
 
-require github.com/labstack/echo/v4 v4.15.1
+require github.com/labstack/echo/v5 v5.0.4
