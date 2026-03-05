@@ -1,25 +1,33 @@
 name: CI
 
 on:
-  - pull_request
+  pull_request:
+
 jobs:
   matrix:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - id: file_changes
+
+      - name: File changes
         uses: trilom/file-changes-action@v1.2.4
-      - uses: actions/checkout@v6
-      - uses: ruby/setup-ruby@v1
+        id: file_changes
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
         with:
           ruby-version: "4.0.1"
           bundler-cache: true
+
       - name: Install deps
         run: bundle install --jobs 4 --retry 3
-      - id: set-matrix
+
+      - name: Set matrix
+        id: set-matrix
         run: echo "matrix=$(bundle exec rake ci:matrix)" >> "$GITHUB_OUTPUT"
         env:
           FILES: ${{ steps.file_changes.outputs.files }}
@@ -37,11 +45,15 @@ jobs:
       matrix: ${{fromJson(needs.matrix.outputs.matrix)}}
 
     steps:
-      - uses: actions/checkout@v6
-      - uses: ruby/setup-ruby@v1
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
         with:
           ruby-version: "4.0.1"
           bundler-cache: true
+
       - name: Install deps
         run: bundle install --jobs 4 --retry 3
 
@@ -58,7 +70,7 @@ jobs:
           DIRECTORY: ${{ matrix.directory }}
           ENGINE: ${{ matrix.engine }}
 
-      - name: Wait
+      - name: Wait for framework HTTP readiness
         run: |
           IP_FILE="${{ matrix.directory }}/ip-${{ matrix.engine }}.txt"
           IP=$(cat $IP_FILE | tr -d '[:space:]')
@@ -76,6 +88,7 @@ jobs:
               exit 1
             fi
           done
+
       - name: Test
         run: bundle exec rspec .spec
         env:
