@@ -1,5 +1,6 @@
+# frozen_string_literal: true
+
 require 'pg'
-require 'mustache'
 require 'yaml'
 require 'active_support/number_helper'
 require 'etc'
@@ -35,6 +36,7 @@ namespace :db do
     end
     pp reqs.select { |i| i[:level] == 256 }.sort_by { |i| i[:value] }
   end
+
   task :check_failures do
     results = JSON.parse(File.read('data.json'))
     results['frameworks'].map { _1['label'] }
@@ -47,6 +49,7 @@ namespace :db do
     end}"
     $stdout.puts "Missing : #{list_of - results['frameworks'].map { _1['label'] }}"
   end
+
   task :raw_export do
     raise 'Please provide a database' unless ENV['DATABASE_URL']
 

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'net/ssh'
+require 'mustache'
 
 namespace :cloud do
   task :config do

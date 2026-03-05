@@ -1,7 +1,7 @@
-require 'open3'
-require 'csv'
-require 'etc'
-require 'bigdecimal/util'
+# frozen_string_literal: true
+
+require 'pg'
+require 'yaml'
 
 PIPELINE = {
   GET: File.join(Dir.pwd, 'pipeline.lua'),
