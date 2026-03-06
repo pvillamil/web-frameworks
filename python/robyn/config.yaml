@@ -1,7 +1,7 @@
 framework:
   website: robyn.tech
   github: sparckles/robyn
-  version: 0.79
+  version: '0.80'
 
   engines:
     - robyn
