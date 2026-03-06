@@ -3,8 +3,7 @@ framework:
   version: 7.0
 
   bootstrap:
-    - npm install -g typescript
-    - npm link typescript
+    - npm install
     - node ace.js build
 
   files:

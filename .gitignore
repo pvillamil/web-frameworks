@@ -26,7 +26,7 @@ venv
 /bin/*
 
 # Specific to AdonisJS
-!/javascript/adonisjs6-slim/bin
+!/javascript/adonisjs-slim/bin
 
 # Rust build directories
 rust/*/target

@@ -12,9 +12,15 @@
 import { Env } from "@adonisjs/core/env";
 
 export default await Env.create(new URL("../", import.meta.url), {
+  // Node
   NODE_ENV: Env.schema.enum(["development", "production", "test"] as const),
   PORT: Env.schema.number(),
-  APP_KEY: Env.schema.string(),
   HOST: Env.schema.string({ format: "host" }),
   LOG_LEVEL: Env.schema.string(),
+
+  // App
+  APP_KEY: Env.schema.secret(),
+
+  // Session
+  SESSION_DRIVER: Env.schema.enum(["cookie", "memory", "database"] as const),
 });

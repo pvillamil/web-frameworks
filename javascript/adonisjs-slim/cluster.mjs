@@ -1,5 +1,5 @@
-import cluster from 'node:cluster';
-import { availableParallelism } from 'node:os';
+import cluster from "node:cluster";
+import { availableParallelism } from "node:os";
 
 const numCpus = availableParallelism();
 
@@ -9,4 +9,5 @@ if (numCpus > 1 && cluster.isPrimary) {
   }
 } else {
   await import(`./${process.env.NODE_APP}`);
+  console.log(`Worker ${process.pid} running at:`);
 }
