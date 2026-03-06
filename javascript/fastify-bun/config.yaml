@@ -1,6 +1,6 @@
 framework:
   website: fastify.dev
-  version: 5.7
+  version: 5.8
 
   engines:
     - bun
