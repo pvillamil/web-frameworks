@@ -4,7 +4,7 @@ import { exec } from "child_process"
 
 const numCpus = availableParallelism();
 
-if (numCpus > 1 && cluster.isPrimary) {
+if (cluster.isPrimary) {
   for (let i = 0; i < numCpus; i++) {
     cluster.fork();
   }

@@ -1,15 +1,23 @@
-// brahma-firelight v1.5.18+ now supports true multi-core ⚡⚡
+import { spawn } from "bun";
 
-// import { availableParallelism } from 'node:os';
+const cpus = navigator.hardwareConcurrency;
+const buns = new Array(cpus);
 
-// const numCpus = availableParallelism();
+for (let i = 0; i < cpus; i++) {
+  buns[i] = spawn({
+    cmd: ["bun", "./app.ts"],
+    stdio: ["inherit", "inherit", "inherit"],
+  });
 
-// for (let i = 0; i < numCpus; i++) {
-//   Bun.spawn(['bun', 'app.ts'], {
-//     stdio: ['inherit', 'inherit', 'inherit'],
-//     env: { ...process.env },
-//   });
-// }
+  console.log(`Worker ${buns[i].pid} started`);
+}
 
-// disabled for now
-import './app';
+function kill() {
+  for (const bun of buns) {
+    bun.kill();
+  }
+}
+
+process.on("SIGINT", kill);
+process.on("SIGTERM", kill);
+process.on("exit", kill);
