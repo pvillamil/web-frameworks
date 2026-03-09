@@ -4,4 +4,4 @@ environment:
   sdk: ^3.9.0
 
 dependencies:
-  spry: ^6.0.1
+  spry: 7.0.0
