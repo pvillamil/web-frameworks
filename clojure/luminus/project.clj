@@ -18,7 +18,7 @@
                  [nrepl "1.6.0"]
                  [org.clojure/clojure "1.12.4"]
                  [org.clojure/tools.logging "1.3.1"]
-                 [org.clojure/tools.cli "1.3.250"]
+                 [org.clojure/tools.cli "1.4.256"]
                  [org.webjars.npm/bulma "1.0.4"]
                  [org.webjars.npm/material-icons "1.13.2"]
                  [org.webjars/webjars-locator "0.52"]
