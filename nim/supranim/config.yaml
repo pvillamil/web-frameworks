@@ -14,7 +14,7 @@ framework:
 
   engines:
     default:
-      command: /usr/src/app/server start . --port 3000
+      command: /usr/src/app/server start . --port:3000
 
 framework:
   engines:
