@@ -6,6 +6,7 @@ framework:
     - openssl
     - libpcre3-dev
     - libevent-dev
+    - pkg-config
 
   build_opts:
     - "--mm:arc"
