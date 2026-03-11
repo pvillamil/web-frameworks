@@ -1,8 +1,6 @@
 framework:
   github: supranim/supranim
   version: 0.1
-  engines:
-    - default
 
   build_deps:
     - openssl
@@ -13,7 +11,7 @@ framework:
   build_opts:
     - "--mm:arc"
     - "-d:webapp"
-    - "-d:httpbench" # skip base middleware
+    - "-d:httpbench"
 
   engines:
     default:
