@@ -1,6 +1,8 @@
 framework:
   github: supranim/supranim
   version: 0.1
+  engines:
+    - default
 
   build_deps:
     - openssl
