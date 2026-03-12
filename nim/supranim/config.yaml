@@ -10,3 +10,7 @@ build_deps:
   - libpcre3-dev
   - libevent-dev
   - libsodium23
+
+runtime_deps:
+  - libpcre3-dev
+  - libsodium23

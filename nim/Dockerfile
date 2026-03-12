@@ -50,7 +50,8 @@ RUN apt-get -qq update && \
   apt-get -qy install --no-install-recommends \
     libssl-dev \
     libpcre3-dev \
-    curl && \
+    curl \
+    {{#runtime_deps}}{{{.}}} {{/runtime_deps}} && \
   rm -rf /var/lib/apt/lists/*
 
 {{#custom_files}}
