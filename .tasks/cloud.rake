@@ -102,8 +102,8 @@ namespace :cloud do
   task :upload do
     language = ENV.fetch('LANG')
     framework = ENV.fetch('FRAMEWORK')
-    hostname = ENV['HOST']
-    identity_file = File.expand_path(ENV['SSH_KEY'])
+    hostname = ENV.fetch('HOST', nil)
+    identity_file = File.expand_path(ENV.fetch('SSH_KEY', nil))
 
     directory = File.join(Dir.pwd, language, framework)
     main_config = YAML.safe_load(File.open(File.join(Dir.pwd, 'config.yaml')))
@@ -119,7 +119,7 @@ namespace :cloud do
         end
       end
 
-      $stderr.puts "Trying to connect on #{hostname} with #{identity_file}"
+      warn "Trying to connect on #{hostname} with #{identity_file}"
       Net::SSH.start(hostname, 'root', keys: [identity_file]) do |ssh|
         binaries.each do |binary|
           remote_directory = File.dirname(binary).gsub!(directory, '/opt/web')
@@ -128,7 +128,7 @@ namespace :cloud do
         end
       end
 
-      $stderr.puts "Trying to connect on #{hostname} with #{identity_file}"
+      warn "Trying to connect on #{hostname} with #{identity_file}"
       Net::SCP.start(hostname, 'root', keys: [identity_file]) do |scp|
         config['binaries'].each do |pattern|
           Dir.glob(File.join(directory, pattern)).each do |binary|
@@ -142,10 +142,10 @@ namespace :cloud do
   end
   task :wait do
     while true
-      hostname = ENV['HOST']
-    identity_file = File.expand_path(ENV['SSH_KEY'])
+      hostname = ENV.fetch('HOST', nil)
+      identity_file = File.expand_path(ENV.fetch('SSH_KEY', nil))
 
-    $stderr.puts "Trying to connect on #{hostname} with #{identity_file}"
+      warn "Trying to connect on #{hostname} with #{identity_file}"
 
       begin
         ssh = Net::SSH.start(hostname, 'root', keys: [identity_file])

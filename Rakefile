@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require "dotenv"
+require 'dotenv'
 
 Dotenv.load
 
-Dir.glob(".tasks/*.rake").each { import it }
+Dir.glob('.tasks/*.rake').each { import it }
