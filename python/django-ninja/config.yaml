@@ -1,6 +1,6 @@
 framework:
   website: django-ninja.rest-framework.com
-  version: 1.5
+  version: 1.6
 
   engines:
     - uvicorn
