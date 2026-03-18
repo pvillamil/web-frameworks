@@ -8,28 +8,25 @@ PIPELINE = {
   POST: File.join(Dir.pwd, 'pipeline_post.lua')
 }.freeze
 
-def insert(db, framework_id, metric, value, concurrency_level_id)
-  res = db.query('INSERT INTO keys (label) VALUES ($1) ON CONFLICT (label) DO UPDATE SET label = $1 RETURNING id',
-                 [metric])
-
+def insert_metric(db, framework_id, metric, value, concurrency_level_id)
+  res = db.query('INSERT INTO keys (label) VALUES ($1) ON CONFLICT (label) DO UPDATE SET label = $1 RETURNING id', [metric])
   metric_id = res.first['id']
 
   res = db.query('INSERT INTO values (key_id, value) VALUES ($1, $2) RETURNING id', [metric_id, value])
   value_id = res.first['id']
 
-  db.query('INSERT INTO metrics (value_id, framework_id, concurrency_id) VALUES ($1, $2, $3)',
-           [value_id, framework_id, concurrency_level_id])
+  db.query('INSERT INTO metrics (value_id, framework_id, concurrency_id) VALUES ($1, $2, $3)', [value_id, framework_id, concurrency_level_id])
 end
 
 task :collect do
   database = ENV.fetch('DATABASE_URL')
   db = PG.connect(database)
+
   Dir.glob('*/*/.results/*/**.json').each do |file|
-    info = file.split('/')
     pp file
-    language = info[0]
-    framework = info[1]
-    concurrency = info[3]
+
+    language, framework, _, concurrency = file.split('/')
+
     res = db.query(
       'INSERT INTO languages (label) VALUES ($1) ON CONFLICT (label) DO UPDATE SET label = $1 RETURNING id', [language]
     )
@@ -41,13 +38,14 @@ task :collect do
       ]
     )
     framework_id = res.first['id']
-    data = YAML.load_file(file, symbolize_names: true)
 
     res = db.query(
       'INSERT INTO concurrencies (level) VALUES ($1) ON CONFLICT (level) DO UPDATE SET level = $1 RETURNING id', [concurrency]
     )
-
     concurrency_level_id = res.first['id']
+
+    data = YAML.safe_load_file(file, symbolize_names: true)
+
     results = {
       duration_ms: data.dig(:summary, :total) * 1000,
       total_requests: -1,
@@ -67,9 +65,11 @@ task :collect do
       percentile99: data.dig(:latencyPercentiles, :p95),
       percentile99999: -1
     }
+
     results.each do |key, value|
-      insert(db, framework_id, key, value, concurrency_level_id)
+      insert_metric(db, framework_id, key, value, concurrency_level_id)
     end
   end
+
   db.close
 end

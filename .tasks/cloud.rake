@@ -3,170 +3,148 @@
 require 'net/ssh'
 require 'mustache'
 
+def load_config(language, framework)
+  main = YAML.safe_load_file(File.join(Dir.pwd, 'config.yaml'))
+  lang = YAML.safe_load_file(File.join(Dir.pwd, language, 'config.yaml'))
+  fw = YAML.safe_load_file(File.join(Dir.pwd, language, framework, 'config.yaml'))
+
+  main.recursive_merge(lang).recursive_merge(fw)
+end
+
+def build_write_files(config, framework_dir)
+  files = []
+
+  if config.key?('service')
+    files << {
+      'path' => '/usr/lib/systemd/system/web.service',
+      'permission' => '0644',
+      'content' => Mustache.render(config['service'], config)
+    }
+  end
+
+  stringified_environment = config.key?('environment') ? config['environment'].map { |k, v| "#{k}=#{v}" }.join("\n") : ''
+
+  files << {
+    'path' => '/etc/web',
+    'permission' => '0644',
+    'content' => stringified_environment
+  }
+
+  Array(config['files']).each do |pattern|
+    Dir.glob(File.join(framework_dir, pattern)).each do |path|
+      remote_path = path
+                    .gsub(framework_dir, '')
+                    .gsub(%r{^/}, '')
+                    .gsub(%r{^\.\./\.}, '')
+
+      files << {
+        'path' => "/opt/web/#{remote_path}",
+        'permission' => '0644',
+        'content' => File.read(path)
+      }
+    end
+  end
+
+  files
+end
+
+def build_packages(config)
+  Array(config.dig('cloud', 'config', 'packages')) + Array(config['deps'])
+end
+
+def build_runcmd(config)
+  cmds = []
+
+  cmds += Array(config['bootstrap'])
+
+  cmds += Array(config['cloud']['config']['runcmd'])
+
+  config['php_ext']&.each do |deps|
+    cmds << "pecl install #{deps}"
+    cmds << "echo 'extension=#{deps}' > /etc/php.d/99-#{deps}.ini"
+  end
+
+  cmds += Array(config['after_command'])
+
+  cmds
+end
+
 namespace :cloud do
   task :config do
     language = ENV.fetch('LANG')
     framework = ENV.fetch('FRAMEWORK')
 
-    directory = File.join(Dir.pwd, language, framework)
-    main_config = YAML.safe_load(File.open(File.join(Dir.pwd, 'config.yaml')))
-    language_config = YAML.safe_load(File.open(File.join(Dir.pwd, language, 'config.yaml')))
-    framework_config = YAML.safe_load(File.open(File.join(directory, 'config.yaml')))
-    config = main_config.recursive_merge(language_config).recursive_merge(framework_config)
+    framework_dir = File.join(Dir.pwd, language, framework)
 
-    config['cloud']['config']['write_files'] = if config.key?('service')
-                                                 [{
-                                                   'path' => '/usr/lib/systemd/system/web.service',
-                                                   'permission' => '0644',
-                                                   'content' => Mustache.render(config['service'], config)
-                                                 }]
-                                               else
-                                                 []
-                                               end
+    config = load_config(language, framework)
+    cloud_config = config['cloud']['config']
 
-    if config.key?('environment')
-      environment = config.fetch('environment')
-      stringified_environment = ''
-      environment.map { |k, v| stringified_environment += "#{k}=#{v}\n" }
-      config['cloud']['config']['write_files'] << {
-        'path' => '/etc/web',
-        'permission' => '0644',
-        'content' => stringified_environment
-      }
-    else
-      config['cloud']['config']['write_files'] << {
-        'path' => '/etc/web',
-        'permission' => '0644',
-        'content' => ''
-      }
-    end
+    cloud_config['write_files'] = build_write_files(config, framework_dir)
+    cloud_config['packages'] = build_packages(config)
+    cloud_config['runcmd'] = build_runcmd(config)
 
-    if config.key?('deps')
-      config['cloud']['config']['packages'] = [] unless config['cloud']['config'].key?('packages')
-      config['deps'].each do |package|
-        config['cloud']['config']['packages'] << package
-      end
-    end
-
-    if config.key?('bootstrap')
-      commands = config['cloud']['config']['runcmd'] || []
-      config['cloud']['config']['runcmd'] = []
-      config['bootstrap'].each do |cmd|
-        config['cloud']['config']['runcmd'] << cmd
-      end
-      commands.each do |cmd|
-        config['cloud']['config']['runcmd'] << cmd
-      end
-    end
-
-    if config.key?('php_ext')
-      config['php_ext'].each do |deps|
-        config['cloud']['config']['runcmd'] << "pecl install #{deps}"
-        config['cloud']['config']['runcmd'] << "echo 'extension=#{deps}' > /etc/php.d/99-#{deps}.ini"
-      end
-    end
-
-    if config.key?('after_command')
-      config['after_command'].each do |cmd|
-        config['cloud']['config']['runcmd'] << cmd
-      end
-    end
-
-    if config.key?('files')
-      config['files'].each do |pattern|
-        path = File.join(directory, pattern)
-        files = Dir.glob(path)
-
-        files.each do |path|
-          remote_path = path.gsub(directory, '').gsub(%r{^/}, '').gsub(%r{^\.\./\.}, '')
-          remote_directory = File.dirname(remote_path)
-
-          config['cloud']['config']['write_files'] << {
-            'path' => "/opt/web/#{remote_path}",
-            'content' => File.read(path),
-            'permission' => '0644'
-          }
-
-          next if remote_directory.start_with?('.')
-        end
-      end
-    end
-
-    File.open(File.join(directory, 'user_data.yml'), 'w') do |f|
-      f.write('#cloud-config')
-      f.write("\n")
-      f.write(config['cloud']['config'].to_yaml)
+    File.open(File.join(framework_dir, 'user_data.yml'), 'w') do |f|
+      f.puts '#cloud-config'
+      f.write cloud_config.to_yaml
     end
   end
 
   task :upload do
     language = ENV.fetch('LANG')
     framework = ENV.fetch('FRAMEWORK')
-    hostname = ENV.fetch('HOST', nil)
-    identity_file = File.expand_path(ENV.fetch('SSH_KEY', nil))
+    hostname = ENV.fetch('HOST')
+    identity_file = File.expand_path(ENV.fetch('SSH_KEY'))
 
-    directory = File.join(Dir.pwd, language, framework)
-    main_config = YAML.safe_load(File.open(File.join(Dir.pwd, 'config.yaml')))
-    language_config = YAML.safe_load(File.open(File.join(Dir.pwd, language, 'config.yaml')))
-    framework_config = YAML.safe_load(File.open(File.join(directory, 'config.yaml')))
-    config = main_config.recursive_merge(language_config).recursive_merge(framework_config)
+    framework_dir = File.join(Dir.pwd, language, framework)
+    config = load_config(language, framework)
 
-    if config.key?('binaries')
-      binaries = []
-      config['binaries'].each do |pattern|
-        Dir.glob(File.join(directory, pattern)).each do |binary|
-          binaries << binary
-        end
+    return unless config['binaries']
+
+    binaries = config['binaries'].flat_map { |pattern| Dir.glob(File.join(framework_dir, pattern)) }
+
+    warn "Trying to connect on #{hostname} with #{identity_file}"
+    Net::SSH.start(hostname, 'root', keys: [identity_file]) do |ssh|
+      binaries.each do |bin|
+        remote_directory = File.dirname(bin).gsub!(framework_dir, '/opt/web')
+        puts "Creating #{remote_directory}"
+        ssh.exec!("mkdir -p #{remote_directory}")
       end
+    end
 
-      warn "Trying to connect on #{hostname} with #{identity_file}"
-      Net::SSH.start(hostname, 'root', keys: [identity_file]) do |ssh|
-        binaries.each do |binary|
-          remote_directory = File.dirname(binary).gsub!(directory, '/opt/web')
-          $stdout.puts "Creating #{remote_directory}"
-          ssh.exec!("mkdir -p #{remote_directory}")
-        end
-      end
-
-      warn "Trying to connect on #{hostname} with #{identity_file}"
-      Net::SCP.start(hostname, 'root', keys: [identity_file]) do |scp|
-        config['binaries'].each do |pattern|
-          Dir.glob(File.join(directory, pattern)).each do |binary|
-            remote_directory = File.dirname(binary).gsub!(directory, '/opt/web')
-            $stdout.puts "Uploading #{binary} to #{remote_directory}"
-            scp.upload!(binary, remote_directory, verbose: true, recursive: true)
-          end
-        end
+    warn "Trying to connect on #{hostname} with #{identity_file}"
+    Net::SCP.start(hostname, 'root', keys: [identity_file]) do |scp|
+      binaries.each do |bin|
+        remote_directory = File.dirname(bin).gsub!(framework_dir, '/opt/web')
+        puts "Uploading #{bin} to #{remote_directory}"
+        scp.upload!(bin, remote_directory, verbose: true, recursive: true)
       end
     end
   end
+
   task :wait do
-    while true
-      hostname = ENV.fetch('HOST', nil)
-      identity_file = File.expand_path(ENV.fetch('SSH_KEY', nil))
+    hostname = ENV.fetch('HOST')
+    identity_file = File.expand_path(ENV.fetch('SSH_KEY'))
 
-      warn "Trying to connect on #{hostname} with #{identity_file}"
+    ssh = nil
 
-      begin
-        ssh = Net::SSH.start(hostname, 'root', keys: [identity_file])
-      rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Net::SSH::AuthenticationFailed => e
-        pp e
-        sleep 5
-        next
-      else
-        break
-      end
+    warn "Trying to connect on #{hostname} with #{identity_file}"
+
+    loop do
+      ssh = Net::SSH.start(hostname, 'root', keys: [identity_file])
+      break
+    rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Net::SSH::AuthenticationFailed => e
+      pp e
+      sleep 5
     end
 
     loop do
       output = ssh.exec!('cloud-init status')
-      _, status = output.split(':')
+      status = output.split(':').last.strip
 
-      raise 'Cloud-init have failed' if status.strip == 'error'
+      raise 'Cloud-init have failed' if status == 'error'
+      break if status == 'done'
 
-      break if status.strip == 'done'
-
-      $stdout.puts 'Cloud-init is still running'
+      puts 'Cloud-init is still running'
       sleep 5
     end
 

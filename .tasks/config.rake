@@ -11,39 +11,27 @@ MANIFESTS = {
   build: '.Makefile'
 }.freeze
 
-class ::Hash
-  def recursive_merge(hash)
-    merge!(hash) { |_, old, new| old.instance_of?(Hash) ? old.recursive_merge(new) : new }
-  end
-end
+CUSTOM_CONFIG_KEYS = %w[version engines website github].freeze
 
 def architecture
-  if RUBY_PLATFORM.start_with?('aarch64')
-    'arm64'
-  else
-    'amd64'
-  end
+  RUBY_PLATFORM.start_with?('aarch64') ? 'arm64' : 'amd64'
 end
 
 def arch
-  if RUBY_PLATFORM.start_with?('aarch64')
-    'aarch64'
-  else
-    'x86_64'
-  end
+  RUBY_PLATFORM.start_with?('aarch64') ? 'aarch64' : 'x86_64'
 end
 
 def get_config_from(directory, engines_as_list: true)
-  main_config = YAML.safe_load(File.open(File.join(directory, '..', '..', 'config.yaml')))
-
-  language_config = YAML.safe_load(File.open(File.join(directory, '..', 'config.yaml')))
-
-  framework_config = YAML.safe_load(File.open(File.join(directory, 'config.yaml')))
+  main_config = YAML.safe_load_file(File.join(directory, '..', '..', 'config.yaml'))
+  language_config = YAML.safe_load_file(File.join(directory, '..', 'config.yaml'))
+  framework_config = YAML.safe_load_file(File.join(directory, 'config.yaml'))
 
   config = main_config.recursive_merge(language_config).recursive_merge(framework_config)
 
-  if config.dig('framework', 'engines') && !engines_as_list
-    config['framework']['engines'] = config.dig('framework', 'engines').map do |row|
+  engines = config.dig('framework', 'engines')
+
+  if engines && !engines_as_list
+    config['framework']['engines'] = engines.map do |row|
       if row.is_a?(String) && config.dig('language', 'engines', row)
         { row => config.dig('language', 'engines', row) }
       else
@@ -52,67 +40,52 @@ def get_config_from(directory, engines_as_list: true)
     end
   end
 
-  skippable_keys = framework_config['framework'].select { |_k, v| v.nil? }.keys
-  skippable_keys.each do |skippable_key|
-    config['framework'].except!(skippable_key)
-    config['language'].except!(skippable_key)
-  end
+  skippable_keys = framework_config['framework'].select { |_, v| v.nil? }.keys
+
+  config['framework'].except!(*skippable_keys)
+  config['language'].except!(*skippable_keys)
 
   config
 end
 
-CUSTOM_CONFIG_KEYS = %w[version engines website github].freeze
+def override_or_merge(*values)
+  value = values.compact.last
 
-def custom_config(dict1, dict2, dict3)
-  keys = dict1.keys << dict2.keys << dict3.keys
-  data = {}
+  values.reverse_each do |v|
+    next unless v && value
 
-  keys.flatten!.uniq.each do |key|
-    next if CUSTOM_CONFIG_KEYS.include?(key)
-
-    data[key] = override_or_merge(dict3[key], dict2[key], dict1[key])
-  end
-  data
-end
-
-def override_or_merge(value3, value2, value1)
-  value = value3
-  if value
-    if value2
-      case value2
-      when Array
-        value.unshift(*value2)
-      when String
-        value = value2
-      end
+    case v
+    when Array
+      value = (v + value).uniq
+    when String
+      value = v
     end
-  else
-    value = value2
-  end
-  if value
-    if value1
-      case value1
-      when Array
-        value.unshift(*value1).uniq!
-      when String
-        value = value1
-      end
-    end
-  else
-    value = value1
   end
 
   value
 end
 
+def custom_config(dict1, dict2, dict3)
+  keys = (dict1.keys + dict2.keys + dict3.keys).uniq
+
+  keys.each_with_object({}) do |key, data|
+    next if CUSTOM_CONFIG_KEYS.include?(key)
+
+    data[key] = override_or_merge(dict3[key], dict2[key], dict1[key])
+  end
+end
+
 def commands_for(language, framework, variant, provider = 'docker')
-  config = YAML.safe_load_file('config.yaml')
+  concurrencies = ENV.fetch('CONCURRENCIES', '10')
+  routes = ENV.fetch('ROUTES', 'GET:/')
 
   directory = Dir.pwd
-  main_config = YAML.safe_load(File.open(File.join(directory, 'config.yaml')))
-  language_config = YAML.safe_load(File.open(File.join(directory, language, 'config.yaml')))
-  framework_config = YAML.safe_load(File.open(File.join(directory, language, framework, 'config.yaml')))
+
+  main_config = YAML.safe_load_file(File.join('config.yaml'))
+  language_config = YAML.safe_load_file(File.join(directory, language, 'config.yaml'))
+  framework_config = YAML.safe_load_file(File.join(directory, language, framework, 'config.yaml'))
   app_config = main_config.recursive_merge(language_config).recursive_merge(framework_config)
+
   options = { language: language, framework: framework, variant: variant, manifest: "#{MANIFESTS[:container]}.#{variant}" }
   commands = { build: [], collect: [], clean: [], warmup: [], unbuild: [], test: [] }
 
@@ -130,44 +103,48 @@ def commands_for(language, framework, variant, provider = 'docker')
     end
   end
 
-  config['providers'][provider]['build'].each do |cmd|
+  main_config['providers'][provider]['build'].each do |cmd|
     commands[:build] << Mustache.render(cmd, options).to_s
   end
 
-  config['providers'][provider]['metadata'].each do |cmd|
+  main_config['providers'][provider]['metadata'].each do |cmd|
     commands[:build] << Mustache.render(cmd, options).to_s
   end
 
-  if app_config.key?('bootstrap') && config['providers'][provider].key?('exec')
-    remote_command = config['providers'][provider]['exec']
+  if app_config.key?('bootstrap') && main_config['providers'][provider].key?('exec')
+    remote_command = main_config['providers'][provider]['exec']
     app_config['bootstrap'].each do |cmd|
       commands[:build] << Mustache.render(remote_command, options.merge!(command: cmd)).to_s
     end
   end
 
-  commands[:build] << config.dig('providers', provider, 'reboot') if config.dig('providers', provider).key?('reboot')
+  if main_config.dig('providers', provider).key?('reboot')
+    commands[:build] << main_config.dig('providers', provider, 'reboot')
+  end
 
   # threads = ENV.fetch('THREADS') { Etc.nprocessors } # unused
   # duration = ENV.fetch('DURATION', 10) # unused
-  concurrencies = ENV.fetch('CONCURRENCIES', '10')
-  routes = ENV.fetch('ROUTES', 'GET:/')
 
   hostname = File.join(directory, language, framework, "ip-#{variant}.txt")
-  commands[:warmup] << File.expand_path("~/.cargo/bin/oha --wait-ongoing-requests-after-deadline --no-tui --disable-keepalive --latency-correction http://`cat #{hostname}`:3000/")
+  oha_path = command_available?('oha') ? 'oha' : File.expand_path('~/.cargo/bin/oha')
+
+  commands[:warmup] << "#{oha_path} --wait-ongoing-requests-after-deadline --no-tui --disable-keepalive --latency-correction http://`cat #{hostname}`:3000/"
   commands[:test] << "ENGINE=#{variant} LANGUAGE=#{language} FRAMEWORK=#{framework} bundle exec rspec .spec"
+
   routes.split(',').each do |route|
     method, uri = route.split(':')
 
     concurrencies.split(',').each do |concurrency|
-      hostname = File.join(directory, language, framework, "ip-#{variant}.txt")
       output = File.join(directory, language, framework, '.results', concurrency, "#{uri.tr('/', '_')}.json")
-      commands[:collect] << File.expand_path("~/.cargo/bin/oha --wait-ongoing-requests-after-deadline --no-tui --disable-keepalive --latency-correction -c #{concurrency} -z 15s -m #{method} --output-format json --output #{output} http://`cat #{hostname}`:3000#{uri}")
+      commands[:collect] << "#{oha_path} --wait-ongoing-requests-after-deadline --no-tui --disable-keepalive --latency-correction -c #{concurrency} -z 15s -m #{method} --output-format json --output #{output} http://`cat #{hostname}`:3000#{uri}"
     end
   end
-  config['providers'][provider]['unbuild'].each do |cmd|
+
+  main_config['providers'][provider]['unbuild'].each do |cmd|
     commands[:unbuild] << Mustache.render(cmd, options).to_s
   end
-  config.dig('providers', provider, 'clean').each do |cmd|
+
+  main_config['providers'][provider]['clean'].each do |cmd|
     commands[:clean] << Mustache.render(cmd, options).to_s
   end
 
@@ -192,11 +169,7 @@ def create_dockerfile(directory, engine, config)
                file.gsub("#{directory}/", '')
              end
 
-    source = if File.exist?(variant_file)
-               variant_file
-             else
-               file
-             end
+    source = File.exist?(variant_file) ? variant_file : file
 
     files << { source: source.gsub("#{directory}/", ''), target: target }
   end
@@ -208,6 +181,7 @@ def create_dockerfile(directory, engine, config)
       static_files << { source: static_file.gsub("#{directory}/", ''), target: static_file.gsub("#{directory}/", '') }
     end
   end
+
   compiler = config.dig('language', 'compiler')
   config['language']['compiler'] = { compiler => true } if compiler
 
@@ -221,6 +195,7 @@ def create_dockerfile(directory, engine, config)
     .merge!(files:, static_files:, environment: config['environment']&.map do |k, v|
                                                   "#{k}=#{v}"
                                                 end)
+
   File.write(File.join(directory, ".Dockerfile.#{engine}"), Mustache.render(template, config))
 end
 
@@ -240,11 +215,10 @@ end
 
 def shell_to_json_array(value)
   case value
+  when Array
+    entrypoint_args_json(value)
   when String
-    normalized = value
-                 .gsub(/\\\s*\n/, ' ')
-                 .gsub(/\s+/, ' ')
-                 .strip
+    normalized = normalize_shell(value)
 
     if normalized.start_with?('sh -c ')
       parts = normalized.split(' ', 3)
@@ -258,93 +232,98 @@ def shell_to_json_array(value)
 
       rest = normalized[parts.length..].strip
       return entrypoint_args_json(['sh', '-c', "#{parts}exec #{rest}"])
-
     end
 
     entrypoint_args_json(Shellwords.split(normalized))
-  when Array
-    entrypoint_args_json(value)
   else
     raise "Invalid command: #{value}"
   end
 end
 
-desc 'Create Dockerfiles'
+def generate_dockerfiles(directory, engines, config)
+  language_config = config['language']
+  framework_config = config['framework']
+
+  engines.each do |engine|
+    engine.each do |name, data|
+      variables = custom_config(language_config, framework_config, data)
+      variables['files'].each { |f| f.prepend(directory, File::SEPARATOR) unless f.start_with?(directory) }.uniq!
+      variables['static_files']&.each do |f|
+        f.prepend(directory, File::SEPARATOR) unless f.start_with?(directory)
+      end&.uniq!
+
+      create_dockerfile(directory, name, config.merge(variables))
+    end
+  end
+end
+
+def create_makefile(language, framework, engines)
+  path = File.join(language, framework, MANIFESTS[:build])
+
+  File.open(path, 'w') do |makefile|
+    engine = engines.first.keys.first
+
+    commands_for(language, framework, engine).each do |target, commands|
+      makefile.puts "#{target}:"
+      commands.each { |cmd| makefile.puts("\t#{cmd}") }
+    end
+
+    names = engines.flat_map(&:keys)
+    command = names.flat_map { |n| ["build.#{n}", "collect.#{n}", "clean.#{n}"] }.join(' ')
+
+    makefile.puts "run-all: #{command}"
+  end
+end
+
+desc 'Create Dockerfiles and Makefiles'
 task :config do
   Dir.glob('*/*/config.yaml').each do |path|
-    directory = File.dirname(path)
-    config = get_config_from(directory, engines_as_list: false)
+    dir = File.dirname(path)
 
-    language_config = config['language']
-    framework_config = config['framework']
-    config.dig('framework', 'engines')&.each do |engine|
-      engine.each do |name, data|
-        variables = custom_config(language_config, framework_config, data)
-        variables['files'].each { |f| f.prepend(directory, File::SEPARATOR) unless f.start_with?(directory) }.uniq!
-        variables['static_files']&.each do |f|
-          f.prepend(directory, File::SEPARATOR) unless f.start_with?(directory)
-        end&.uniq!
+    config = get_config_from(dir, engines_as_list: false)
+    engines = config.dig('framework', 'engines')
 
-        create_dockerfile(directory, name, config.merge(variables))
-      end
-    end
+    generate_dockerfiles(dir, engines, config)
 
-    language, framework = directory.split(File::SEPARATOR)
-
-    File.open(File.join(language, framework, MANIFESTS[:build]), 'w') do |makefile|
-      engine = config.dig('framework', 'engines').first.first.first
-
-      commands_for(language, framework, engine).each do |target, commands|
-        makefile.write("#{target}:\n")
-        commands.each do |command|
-          makefile.write("\t #{command}\n")
-        end
-      end
-
-      names = config.dig('framework', 'engines')&.flat_map(&:keys)
-      command = names&.flat_map { |n| ["build.#{n}", "collect.#{n}", "clean.#{n}"] }&.join(' ')
-
-      makefile.write("run-all : #{command}\n")
-    end
+    language, framework = dir.split(File::SEPARATOR)
+    create_makefile(language, framework, engines)
   end
 end
 
 desc 'Get framework by success rate'
 task :by_success do
-  frameworks = {}
+  frameworks = Hash.new { |h, k| h[k] = Set.new }
 
   Dir.glob('*/**/.results/**/*.json').each do |file|
     data = JSON.load_file(file, symbolize_names: true)
-    rate = data.dig(:summary, :successRate).round(2)
-    next unless rate < 1
+    rate = data.dig(:summary, :successRate)&.round(2)
+    next unless rate && rate < 1
 
-    frameworks[rate] = [] unless frameworks[rate]
-    name = file.split('/')[1]
+    name = file.split('/').first
     frameworks[rate] << name
   end
 
-  pp frameworks.map { |success_rate, framework| [success_rate, framework.uniq.join(',')] }
+  pp frameworks.map { |success_rate, framework| [success_rate, framework.join(',')] }
 end
 
 desc 'Clean unused file'
 task :clean do
   Dir.glob('*/**/.gitignore').each do |ignore_file|
-    directory = File.dirname(ignore_file)
+    dir = File.dirname(ignore_file)
 
     File.foreach(ignore_file) do |line|
       line.strip!
-
       next if line.empty? || line.start_with?('!', '#', '.env')
 
-      Dir.glob(File.join(directory, line)).each do |path|
-        if File.exist?(path)
-          if File.file?(path)
-            warn "Delting file #{path}"
-            File.delete(path)
-          elsif File.directory?(path)
-            warn "Deleting directory #{path}"
-            FileUtils.rm_rf(path)
-          end
+      Dir.glob(File.join(dir, line)).each do |path|
+        next unless File.exist?(path)
+
+        if File.file?(path)
+          warn "Delting file #{path}"
+          File.delete(path)
+        elsif File.directory?(path)
+          warn "Deleting directory #{path}"
+          FileUtils.rm_rf(path)
         end
       end
     end
