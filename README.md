@@ -1,61 +1,69 @@
+# Web framework benchmarks
+
+## Required tools
+
 - `ruby`, all tools are made in `ruby`
 
-```sh
-sudo dnf install ruby
-```
+    ```sh
+    sudo dnf install ruby
+    ```
 
-- `wrk`, results are collected using `wrk`
+- `wrk` -  results are collected using `wrk`
 
-```sh
-cd `mktemp -d` && git clone https://github.com/wg/wrk -b 4.2.0 . && make && sudo mv wrk /usr/bin/
-```
+    ```sh
+    cd `mktemp -d` && git clone https://github.com/wg/wrk -b 4.2.0 . && make && sudo mv wrk /usr/bin/
+    ```
 
-- `postgresql`, results are stored in `postgresql`
+- `postgresql` - results are stored in `postgresql`
 
-```sh
-sudo dnf install postgresql{,-server}
-```
+    ```sh
+    sudo dnf install postgresql{,-server}
+    ```
 
-- `docker`, each implementation is implemented in an isolated **container**
-- `jq`, processing `docker` metadata
-- `docker-machine` if you are on `macos`
+    Or you can start and configure a Postgres from docker via
 
-You can start and configure a postgres from docker via
+    ```sh
+    docker run -d -p 5432:5432 \
+        --name postgres \
+        -v /var/run/postgresql:/var/run/postgresql \
+        -e POSTGRES_HOST_AUTH_METHOD=trust \
+        -e POSTGRES_USER=postgres \
+        -e POSTGRES_DB=benchmark \
+        postgres:18-trixie
+    docker exec -i postgres psql -U postgres -d benchmark < dump.sql
+    ```
 
-```sh
-docker run  --name postgres -v /var/run/postgresql:/var/run/postgresql -e POSTGRES_PASSWORD=postgres -e POSTGRES_HOST_AUTH_METHOD=trust -d -p 5432:5432 postgres
-dropdb -U postgres benchmark
-createdb -U postgres benchmark
-psql -U postgres -d benchmark < dump.sql
-```
+- `docker` - each implementation is implemented in an isolated **container**
+- `jq` - processing `docker` metadata
+- `docker-machine` - required if you are on `macOS`
 
 ## Usage
 
-- Setup
+### Setup
 
-```
+```sh
 bundle install
 bundle exec rake config
 ```
 
-- Build
+### Build
 
-:warning: On `macos`, you need to use `docker-machine` to allow `docker` usage
+:warning: On `macOS`, you need to use `docker-machine` to allow `docker` usage
 for each framework :warning:
 
-```
+```sh
 docker-machine rm default --force
 docker-machine create default
 eval $(docker-machine env default)
 ```
 
-```
+```sh
 export FRAMEWORK=php/lumen; make -f $FRAMEWORK/.Makefile build
 ```
 
-- Run
+### Run
 
-```
+```sh
 export FRAMEWORK=php/lumen; make -f $FRAMEWORK/.Makefile collect
 ```
 
@@ -67,4 +75,4 @@ Please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Results
 
-Please take a look at https://web-frameworks-benchmark.vercel.app/result
+Please take a look at <https://web-frameworks-benchmark.vercel.app/result>
