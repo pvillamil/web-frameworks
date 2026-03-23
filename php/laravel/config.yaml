@@ -1,5 +1,6 @@
 framework:
-  website: laravel.com1
+  website: laravel.com
+  version: 13.1
   
   environment:
     APP_ENV: production
