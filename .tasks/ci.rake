@@ -3,7 +3,7 @@
 require 'json'
 
 def dockerfile_or_language_config?(path)
-  path.end_with?('Dockerfile') || (path.split(File::SEPARATOR).one? && path.end_with?('config.yaml'))
+  path.end_with?('Dockerfile') || (path.split(File::SEPARATOR).size == 2 && path.end_with?('config.yaml'))
 end
 
 def input_files
