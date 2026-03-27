@@ -35,7 +35,6 @@ if __name__ == "__main__":
     parser.add_option("-h", "--host", dest="host", default='0.0.0.0', type="string")
     parser.add_option("-p", "--port", dest="port", default=3000, type="int")
     parser.add_option("-w", "--workers", dest="workers", default=0, type="int")
-    parser.add_option("-v", "--verbose", dest="verbose", default=0, type="int")
     (opt, args) = parser.parse_args() 
 
     workers = opt.workers
@@ -43,6 +42,4 @@ if __name__ == "__main__":
         import multiprocessing
         workers = multiprocessing.cpu_count()
 
-    fastpysgi.server.backlog = 4096
-    fastpysgi.server.loop_timeout = 1
-    fastpysgi.run(app, opt.host, opt.port, loglevel = opt.verbose, workers = workers)
+    fastpysgi.run(app, opt.host, opt.port, workers = workers)
