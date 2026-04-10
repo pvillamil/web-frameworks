@@ -88,6 +88,7 @@ def commands_for(language, framework, variant, provider = 'docker')
 
   options = { language: language, framework: framework, variant: variant, manifest: "#{MANIFESTS[:container]}.#{variant}" }
   commands = { build: [], collect: [], clean: [], warmup: [], unbuild: [], test: [] }
+  prerequisites = Hash.new { |h, k| h[k] = [] }
 
   # Compile first, only for non containers
   if app_config.key?('binaries') && !provider.start_with?('docker', 'podman')
@@ -126,18 +127,35 @@ def commands_for(language, framework, variant, provider = 'docker')
   # duration = ENV.fetch('DURATION', 10) # unused
 
   hostname = File.join(directory, language, framework, "ip-#{variant}.txt")
+  cid_file = File.join(directory, language, framework, "cid-#{variant}.txt")
+  sampler  = File.join(File.dirname(__FILE__), 'memory_sampler.rb')
   oha_path = command_available?('oha') ? 'oha' : File.expand_path('~/.cargo/bin/oha')
 
-  commands[:warmup] << "#{oha_path} --wait-ongoing-requests-after-deadline --no-tui --disable-keepalive --latency-correction http://`cat #{hostname}`:3000/"
+  commands[:warmup] << "#{oha_path} --wait-ongoing-requests-after-deadline --no-tui --disable-keepalive --latency-correction -z 5s http://`cat #{hostname}`:3000/"
   commands[:test] << "ENGINE=#{variant} LANGUAGE=#{language} FRAMEWORK=#{framework} bundle exec rspec .spec"
 
-  routes.split(',').each do |route|
-    method, uri = route.split(':')
+  idle_out = File.join(directory, language, framework, '.results', 'memory_idle.json')
+  commands[:'memory-idle'] << "ruby #{sampler} --cid #{cid_file} --out #{idle_out} --idle"
 
-    concurrencies.split(',').each do |concurrency|
+  concurrencies.split(',').each do |concurrency|
+    target = :"collect-#{concurrency}"
+    commands[target] = [] unless commands.key?(target)
+
+    memory_out = File.join(directory, language, framework, '.results', concurrency, 'memory.json')
+    oha_cmds = []
+
+    routes.split(',').each do |route|
+      method, uri = route.split(':')
       output = File.join(directory, language, framework, '.results', concurrency, "#{uri.tr('/', '_')}.json")
-      commands[:collect] << "#{oha_path} --wait-ongoing-requests-after-deadline --no-tui --disable-keepalive --latency-correction -c #{concurrency} -z 15s -m #{method} --output-format json --output #{output} http://`cat #{hostname}`:3000#{uri}"
+      oha_cmds << "#{oha_path} --wait-ongoing-requests-after-deadline --no-tui --disable-keepalive --latency-correction -c #{concurrency} -z 15s -m #{method} --output-format json --output #{output} http://`cat #{hostname}`:3000#{uri}"
     end
+
+    # Start memory sampler in background, run all oha calls, then stop sampler
+    commands[target] << "ruby #{sampler} --cid #{cid_file} --out #{memory_out} & SAMPLER_PID=$$!; #{oha_cmds.join('; ')}; kill $$SAMPLER_PID"
+  end
+
+  concurrencies.split(',').each do |c|
+    prerequisites[:collect] << "collect-#{c}"
   end
 
   main_config['providers'][provider]['unbuild'].each do |cmd|
@@ -148,7 +166,7 @@ def commands_for(language, framework, variant, provider = 'docker')
     commands[:clean] << Mustache.render(cmd, options).to_s
   end
 
-  commands
+  { commands: commands, prerequisites: prerequisites }
 end
 
 def create_dockerfile(directory, engine, config)
@@ -263,9 +281,14 @@ def create_makefile(language, framework, engines)
   File.open(path, 'w') do |makefile|
     engine = engines.first.keys.first
 
-    commands_for(language, framework, engine).each do |target, commands|
-      makefile.puts "#{target}:"
-      commands.each { |cmd| makefile.puts("\t#{cmd}") }
+    result = commands_for(language, framework, engine)
+    commands     = result[:commands]
+    prerequisites = result[:prerequisites]
+
+    commands.each do |target, cmds|
+      prereqs = prerequisites[target]
+      makefile.puts "#{target}: #{prereqs.join(' ')}".rstrip
+      cmds.each { |cmd| makefile.puts("\t#{cmd}") }
     end
 
     names = engines.flat_map(&:keys)
