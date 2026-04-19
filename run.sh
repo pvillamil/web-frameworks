@@ -26,6 +26,7 @@ while read line ; do
   ret=$?
   if [ $ret -eq 0 ]; then
     make -f ${BASEDIR}/${LANGUAGE}/${FRAMEWORK}/.Makefile warmup
+    make -f ${BASEDIR}/${LANGUAGE}/${FRAMEWORK}/.Makefile memory-idle
     make -f ${BASEDIR}/${LANGUAGE}/${FRAMEWORK}/.Makefile collect
     sleep 5
   else
