@@ -2,7 +2,7 @@ module goravel
 
 go 1.23.0
 
-toolchain go1.26.1
+toolchain go1.26.2
 
 require (
 	github.com/gofiber/fiber/v3 v3.1.0
