@@ -9,3 +9,9 @@ framework:
     - daphne
     - granian
     - gunicorn
+
+language:
+  engines:
+    gunicorn:
+      environment:
+        WORKER_CLASS: asgi
