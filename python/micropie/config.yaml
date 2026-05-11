@@ -4,10 +4,10 @@ framework:
   version: 0.28
 
   engines:
+    - granian
     - uvicorn
     - hypercorn
     - daphne
-    - granian
     - gunicorn
 
 language:
