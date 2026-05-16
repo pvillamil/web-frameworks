@@ -8,7 +8,3 @@ framework:
 
 build_deps:
   - libevent-dev
-  - libpcre2-dev
-
-runtime_deps:
-  - libpcre2-dev
