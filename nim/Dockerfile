@@ -49,7 +49,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update && \
   apt-get -qy install --no-install-recommends \
     libssl-dev \
-    libpcre3-dev \
+    libpcre2-dev \
     curl \
     {{#runtime_deps}}{{{.}}} {{/runtime_deps}} && \
   rm -rf /var/lib/apt/lists/*
