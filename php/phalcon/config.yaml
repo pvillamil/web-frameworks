@@ -1,6 +1,6 @@
 framework:
   website: phalcon.io
-  version: 5.12
+  version: 5.13
 
   extensions:
     - psr
