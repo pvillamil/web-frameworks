@@ -1,4 +1,4 @@
-import 'total5'
+require('total5');
 
 ROUTE('GET /', function($) {
   $.text('');

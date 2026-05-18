@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'active_support'
 require 'yaml'
 require 'mustache'
@@ -127,21 +125,21 @@ def commands_for(language, framework, variant, provider = 'docker')
   # duration = ENV.fetch('DURATION', 10) # unused
 
   hostname = File.join(directory, language, framework, "ip-#{variant}.txt")
-  cid_file = File.join(directory, language, framework, "cid-#{variant}.txt")
-  sampler  = File.join(File.dirname(__FILE__), 'memory_sampler.rb')
+  File.join(directory, language, framework, "cid-#{variant}.txt")
+  File.join(File.dirname(__FILE__), 'memory_sampler.rb')
   oha_path = command_available?('oha') ? 'oha' : File.expand_path('~/.cargo/bin/oha')
 
   commands[:warmup] << "#{oha_path} --wait-ongoing-requests-after-deadline --no-tui --disable-keepalive --latency-correction -z 5s http://`cat #{hostname}`:3000/"
   commands[:test] << "ENGINE=#{variant} LANGUAGE=#{language} FRAMEWORK=#{framework} bundle exec rspec .spec"
 
-  idle_out = File.join(directory, language, framework, '.results', 'memory_idle.json')
-  commands[:'memory-idle'] << "ruby #{sampler} --cid #{cid_file} --out #{idle_out} --idle"
+  # commands[:'memory-idle'] << "ruby #{sampler} --cid #{cid_file} --out #{idle_out} --idle"
+  # idle_out = File.join(directory, language, framework, '.results', 'memory_idle.json')
 
   concurrencies.split(',').each do |concurrency|
     target = :"collect-#{concurrency}"
     commands[target] = [] unless commands.key?(target)
 
-    memory_out = File.join(directory, language, framework, '.results', concurrency, 'memory.json')
+    # memory_out = File.join(directory, language, framework, '.results', concurrency, 'memory.json')
     oha_cmds = []
 
     routes.split(',').each do |route|
@@ -151,7 +149,8 @@ def commands_for(language, framework, variant, provider = 'docker')
     end
 
     # Start memory sampler in background, run all oha calls, then stop sampler
-    commands[target] << "ruby #{sampler} --cid #{cid_file} --out #{memory_out} & SAMPLER_PID=$$!; #{oha_cmds.join('; ')}; kill $$SAMPLER_PID"
+    # commands[target] << "ruby #{sampler} --cid #{cid_file} --out #{memory_out} & SAMPLER_PID=$$!; #{oha_cmds.join('; ')}; kill $$SAMPLER_PID"
+    commands[target] << oha_cmds.join('; ')
   end
 
   concurrencies.split(',').each do |c|
@@ -282,7 +281,7 @@ def create_makefile(language, framework, engines)
     engine = engines.first.keys.first
 
     result = commands_for(language, framework, engine)
-    commands     = result[:commands]
+    commands = result[:commands]
     prerequisites = result[:prerequisites]
 
     commands.each do |target, cmds|

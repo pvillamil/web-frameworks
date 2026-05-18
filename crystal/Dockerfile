@@ -20,7 +20,7 @@ RUN --mount=type=cache,id=shards-lib-{{language.version}},target=lib \
   shards install --production
 
 RUN --mount=type=cache,id=shards-lib-{{language.version}},target=lib \
-  shards build --release --static --no-debug
+  shards build --release --no-debug
 
 
 
