@@ -1,4 +1,9 @@
-FROM node:25.9-trixie-slim
+{{#language.node.version}}
+  FROM node:{{{.}}}-trixie-slim
+{{/language.node.version}}
+{{^language.node.version}}
+  FROM node:26.1-trixie-slim
+{{/language.node.version}}
 
 WORKDIR /usr/src/app
 

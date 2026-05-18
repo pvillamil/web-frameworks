@@ -1,5 +1,7 @@
 language:
-  version: 8.4
+  engines:
+    swoole:
+      command: php start.php
 framework:
   github: luoxiaojun1992/sw-fw-less
   version: preview
@@ -14,5 +16,3 @@ framework:
 
   deps:
     - libsodium-dev
-
-  command: php start.php
