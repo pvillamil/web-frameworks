@@ -1,5 +1,5 @@
 name := "server"
-scalaVersion := "3.8.3"
+scalaVersion := "3.8.4"
 
 val PekkoVersion = "1.6.0"
 val PekkoHttpVersion = "[1.3,1.4]"
