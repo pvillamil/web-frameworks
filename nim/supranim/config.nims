@@ -1,5 +1,6 @@
 when defined(linux):
-  --passL:"-L /usr/lib/x86_64-linux-gnu/ -levent -levent_pthreads"
+  --passL:"/usr/lib/x86_64-linux-gnu/libevent.a"
+  --passL:"/usr/lib/x86_64-linux-gnu/libevent_pthreads.a"
   --passC:"-I /usr/include"
 elif defined(macosx):
   --passL:"-L /opt/local/lib/ -levent -levent_pthreads"
