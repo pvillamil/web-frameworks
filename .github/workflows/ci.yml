@@ -23,7 +23,7 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "4.0.4"
+          ruby-version: "4.0.5"
           bundler-cache: true
 
       - name: Install deps
@@ -52,7 +52,7 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "4.0.4"
+          ruby-version: "4.0.5"
           bundler-cache: true
 
       - name: Install deps
@@ -79,7 +79,7 @@ jobs:
           echo "Waiting for http://$IP:3000/ to respond (timeout 30s)..."
 
           SECONDS_WAITED=0
-          MAX_WAIT=30
+          MAX_WAIT=120
 
           until curl -s -f "http://$IP:3000/" > /dev/null; do
             sleep 1

@@ -1,3 +1,6 @@
+language:
+  node:
+    version: 25
 framework:
   website: ionited.io
   version: 0.7

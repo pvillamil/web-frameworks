@@ -8,3 +8,7 @@ framework:
 
 build_deps:
   - libevent-dev
+  - libsodium23
+
+runtime_deps:
+  - libsodium23

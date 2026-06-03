@@ -3,14 +3,12 @@ FROM r-base:4.6.0
 WORKDIR /usr/src/app
 
 ARG DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get -qq update && \
   apt-get -qy install --no-install-recommends \
     apt-utils \
     ca-certificates \
-    curl && \
-  {{#build_deps.length}}
-  apt-get -y install {{#build_deps}}{{{.}}} {{/build_deps}} && \
-  {{/build_deps.length}}
+    libssl-dev {{#build_deps}}{{{.}}} {{/build_deps}} && \
   rm -rf /var/lib/apt/lists/*
 
 RUN R  -e 'install.packages("remotes")'
