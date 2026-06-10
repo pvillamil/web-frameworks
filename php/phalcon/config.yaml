@@ -1,10 +1,10 @@
 framework:
   website: phalcon.io
-  version: 5.13
+  version: 5.14
 
   extensions:
     - psr
-    - phalcon
+    - phalcon/5.14.0
 
   nginx_conf:
     - |
