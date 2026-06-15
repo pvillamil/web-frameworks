@@ -5,6 +5,9 @@ WORKDIR /opt/vlang
 RUN apt-get -qq update && \
   apt-get -qy install --no-install-recommends \
     build-essential \
+    ca-certificates \
+    curl \
+    unzip \
     git && \
   {{#build_deps.length}}
   apt-get -y install {{#build_deps}}{{.}} {{/build_deps}} && \
@@ -15,12 +18,15 @@ ENV PATH=/opt/vlang:$PATH \
   GIT_SSL_NO_VERIFY=1
 
 
-# Pin V to a fixed commit for reproducible builds (instead of moving master).
-# Shallow-fetch just that commit. Bump the SHA to update the compiler.
-RUN git -C /opt/vlang init -q && \
-  git -C /opt/vlang fetch --depth 1 https://github.com/vlang/v 065a450b86f6459b1e4398fe7b0594bbfcc2d691 && \
-  git -C /opt/vlang checkout -q FETCH_HEAD && \
-  make -C /opt/vlang
+# Pin V to the 0.5.1 RELEASE (prebuilt binary) for reproducible builds. We use
+# the tagged release rather than building a master commit from source: post-0.5.1
+# master carries a large codegen regression — single-element array push (`arr <<
+# x`) is 4-7x slower (vlang/v#27468), which slows every V program — so a stable
+# tagged release gives a faster and byte-for-byte reproducible compiler. Bump the
+# version below to update the compiler.
+RUN curl -fsSL https://github.com/vlang/v/releases/download/0.5.1/v_linux.zip -o /tmp/v.zip && \
+  unzip -q /tmp/v.zip -d /tmp && rm /tmp/v.zip && \
+  cp -a /tmp/v/. /opt/vlang/ && rm -rf /tmp/v
 
 RUN ln -s /opt/vlang/v /usr/bin/v
 
