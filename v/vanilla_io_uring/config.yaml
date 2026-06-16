@@ -1,0 +1,14 @@
+framework:
+  github: vlang/v
+
+  # Install as the `vanilla` module (import vanilla.http_server). `v install <url>`
+  # now namespaces by owner (~/.vmodules/enghitalo/vanilla), so clone to the
+  # expected path instead.
+  download:
+    - mkdir -p $HOME/.vmodules && git clone --depth 1 https://github.com/enghitalo/vanilla $HOME/.vmodules/vanilla
+
+  build_deps:
+    - liburing-dev linux-libc-dev liburing2
+
+  build_flags:
+    - -prod
