@@ -1,7 +1,3 @@
-language:
-  node:
-    version: 25
-
 framework:
   github: dimdenGD/ultimate-express
   version: 2.1

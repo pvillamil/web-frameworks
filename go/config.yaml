@@ -6,6 +6,8 @@ language:
       command: /go/bin/app
     fasthttp:
       command: /go/bin/app
+    gogo:
+      command: /go/bin/app
 
 framework:
   engines:

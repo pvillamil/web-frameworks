@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
-    kotlin("jvm") version "2.3.+"
+    kotlin("jvm") version "2.4.+"
     application
     id("com.gradleup.shadow") version "+"
 }
@@ -51,7 +51,7 @@ tasks {
 }
 
 dependencies {
-    implementation(platform("org.http4k:http4k-bom:6.47.+"))
+    implementation(platform("org.http4k:http4k-bom:6.53.+"))
     implementation("org.http4k:http4k-core")
     implementation("org.http4k:http4k-server-undertow")
 }
