@@ -5,7 +5,7 @@
 import pkg/powpow
 import std/[httpcore, strutils]
 
-let server = newHttpServer()
+let server = newMultiThreadHttpServer()
 
 proc handler(req: HttpRequest, res: HttpResponse) =
   {.gcsafe.}:
@@ -35,4 +35,4 @@ proc handler(req: HttpRequest, res: HttpResponse) =
         res.sendError(Http404,
           "404 Not Found: " & $httpMethod & " " & path) 
 
-server.start(handler, Port(3000))
+server.start(handler, "0.0.0.0", 3000)
